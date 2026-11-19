@@ -1,0 +1,375 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>WorDepth 論文導讀</title>
+<style>
+  :root {
+    --bg: #f6f5f1;
+    --card: #ffffff;
+    --ink: #1f2328;
+    --muted: #5f6670;
+    --line: #dcd9d0;
+    --accent: #2f5d8a;
+    --accent-soft: #e3ecf5;
+    --good: #2e7d4f;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #16181c; --card: #1f2227; --ink: #e8e6e1; --muted: #a0a6ae;
+      --line: #353a42; --accent: #7fb0e0; --accent-soft: #23303d; --good: #6cc495;
+    }
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; }
+  body {
+    background: var(--bg); color: var(--ink);
+    font-family: "Noto Sans TC", "Microsoft JhengHei", "PingFang TC", system-ui, sans-serif;
+    line-height: 1.6;
+  }
+  .deck { height: 100vh; display: flex; align-items: center; justify-content: center; padding: 16px; }
+  .slide {
+    display: none; width: min(1100px, 100%); height: min(720px, calc(100vh - 64px));
+    background: var(--card); border: 1px solid var(--line); border-radius: 14px;
+    padding: 30px 48px 20px; flex-direction: column; overflow: auto;
+  }
+  .slide.active { display: flex; }
+  .chapter { font-size: 14px; letter-spacing: .08em; color: var(--accent); font-weight: 700; text-transform: uppercase; }
+  h1 { font-size: 40px; margin: 8px 0 12px; line-height: 1.25; }
+  h2 { font-size: 27px; margin: 4px 0 14px; line-height: 1.3; }
+  h3 { font-size: 19px; margin: 0 0 8px; color: var(--accent); }
+  p, li { font-size: 17px; }
+  ul { margin: 0; padding-left: 1.2em; }
+  li { margin: 4px 0; }
+  .body { flex: 1; }
+  .src { margin-top: 16px; padding-top: 10px; border-top: 1px solid var(--line); font-size: 13px; color: var(--muted); }
+  .cols { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+  .box { background: var(--accent-soft); border-radius: 10px; padding: 16px 20px; }
+  .box p, .box li { font-size: 16px; }
+  .muted { color: var(--muted); }
+  .note { color: var(--muted); font-size: 15px; margin: 10px 0 0; }
+  .big { font-size: 21px; }
+  em.k { font-style: normal; font-weight: 700; color: var(--accent); }
+  table { border-collapse: collapse; width: 100%; font-size: 16px; font-variant-numeric: tabular-nums; }
+  th, td { border-bottom: 1px solid var(--line); padding: 5px 10px; text-align: right; }
+  th:first-child, td:first-child { text-align: left; }
+  th { color: var(--muted); font-weight: 600; }
+  tr.hl td { font-weight: 700; color: var(--accent); }
+  tr.imp td { color: var(--good); font-size: 15px; }
+  .cover { justify-content: center; }
+  .cover .meta { color: var(--muted); font-size: 18px; margin: 4px 0; }
+  .tagline { margin-top: 28px; font-size: 21px; border-left: 4px solid var(--accent); padding-left: 16px; }
+  .arch { display: grid; grid-template-columns: auto 24px auto 24px auto 24px auto 24px auto 24px auto; align-items: center; gap: 6px 4px; margin: 6px 0 18px; }
+  .node { border: 1.5px solid var(--accent); border-radius: 8px; padding: 8px 12px; font-size: 15px; text-align: center; background: var(--card); }
+  .node.in { border-style: dashed; }
+  .node.out { background: var(--accent-soft); font-weight: 700; }
+  .arrow { text-align: center; color: var(--accent); font-size: 20px; }
+  .arrow.detach { font-size: 13px; text-align: right; padding-right: 8px; }
+  .eq { font-family: "Cambria Math", "Times New Roman", serif; font-size: 19px; background: var(--accent-soft); padding: 1px 8px; border-radius: 6px; }
+  .nav { position: fixed; bottom: 6px; left: 0; right: 0; display: flex; justify-content: center; gap: 12px; align-items: center; color: var(--muted); font-size: 14px; }
+  .nav button { background: var(--card); color: var(--ink); border: 1px solid var(--line); border-radius: 6px; padding: 4px 14px; font-size: 16px; cursor: pointer; }
+  @media (max-width: 720px) {
+    .slide { padding: 24px 20px 18px; height: calc(100vh - 70px); }
+    h1 { font-size: 28px; } h2 { font-size: 23px; }
+    p, li { font-size: 16px; } table { font-size: 13px; } th, td { padding: 5px 4px; }
+    .cols { grid-template-columns: 1fr; }
+    .arch { grid-template-columns: 1fr; } .arch > * { grid-area: auto !important; } .arrow { transform: rotate(90deg); }
+  }
+</style>
+</head>
+<body>
+<div class="deck">
+
+<!-- S1 Cover -->
+<section class="slide cover">
+  <div class="chapter">Paper Reading</div>
+  <h1>WorDepth: Variational Language Prior for Monocular Depth Estimation</h1>
+  <p class="meta">Ziyao Zeng, Daniel Wang, Fengyu Yang, Hyoungseob Park, Stefano Soatto, Dong Lao, Alex Wong</p>
+  <p class="meta">Yale University · UCLA ｜ CVPR 2024</p>
+  <p class="tagline">把 text caption 當作 <em class="k">variational prior</em>：先學出「這段描述可能對應哪些 metric-scale 深度圖」，再用影像從中選出最符合的一張。</p>
+  <div class="src">出處：Abstract, §1</div>
+</section>
+
+<!-- S2 Introduction: background -->
+<section class="slide">
+  <div class="chapter">1 · Introduction</div>
+  <h2>研究背景：單張影像本來就無法確定 scale</h2>
+  <div class="body cols">
+    <div>
+      <ul>
+        <li>成像是 3D → 2D 的 surjection，無限多個 3D 場景會得到同一張影像，MDE 是 <em class="k">ill-posed</em></li>
+        <li>主要歧義是重建的 <em class="k">scale</em></li>
+        <li>網路從訓練集學場景分布，但大規模深度資料集稀少，學到的分布未必符合真實世界</li>
+      </ul>
+    </div>
+    <div class="box">
+      <h3>核心問題</h3>
+      <p class="big">除了訓練集之外，能不能用其他 prior 把學到的場景分布校正到真實世界的統計？</p>
+    </div>
+  </div>
+  <div class="src">出處：§1</div>
+</section>
+
+<!-- S3 Introduction: motivation -->
+<section class="slide">
+  <div class="chapter">1 · Introduction</div>
+  <h2>動機：兩種「有歧義」的模態剛好互補</h2>
+  <div class="body">
+    <div class="cols">
+      <div class="box">
+        <h3>影像 Image</h3>
+        <p>✔ 看得到 layout 與物體形狀<br>✘ 不知道 scale</p>
+      </div>
+      <div class="box">
+        <h3>文字 Text caption</h3>
+        <p>例：「A bedroom with a bed and a table」<br>✔ 物體的典型大小提供 scale 線索<br>✘ 不知道 layout</p>
+      </div>
+    </div>
+    <h3 style="margin-top:20px">現有方法的問題</h3>
+    <ul>
+      <li><b>Generic prior</b>（smoothness、connectivity 等）缺乏特定場景資訊</li>
+      <li><b>特定架構設計</b>（如利用相機參數）在假設不成立時會失效</li>
+      <li><b>VLM-based MDE</b>（DepthCLIP、CLIPMDE、VPD）都是 implicit modeling；本文首次把 language <em class="k">明確</em>建模為 variational prior</li>
+    </ul>
+  </div>
+  <div class="src">出處：§1–2, Fig. 1</div>
+</section>
+
+<!-- S4 Method: overview -->
+<section class="slide">
+  <div class="chapter">2 · Method</div>
+  <h2>整體架構：text-VAE ＋ conditional sampler ＋ 共用 depth decoder</h2>
+  <div class="body">
+    <div class="arch">
+      <div class="node in" style="grid-area:1/1">Caption</div>
+      <div class="arrow" style="grid-area:1/2">→</div>
+      <div class="node" style="grid-area:1/3">Text-VAE<br><span class="muted">CLIP text encoder + MLP</span></div>
+      <div class="arrow" style="grid-area:1/4">→</div>
+      <div class="node" style="grid-area:1/5">μ̂ / σ̂</div>
+      <div class="arrow" style="grid-area:1/6">↘</div>
+
+      <div class="arrow detach" style="grid-area:2/3/3/6">↙ μ̂ / σ̂（detached gradient）</div>
+
+      <div class="node in" style="grid-area:3/1">RGB Image</div>
+      <div class="arrow" style="grid-area:3/2">→</div>
+      <div class="node" style="grid-area:3/3">Conditional Sampler<br><span class="muted">Swin-L</span></div>
+      <div class="arrow" style="grid-area:3/4">→</div>
+      <div class="node" style="grid-area:3/5">ε̃</div>
+      <div class="arrow" style="grid-area:3/6">↗</div>
+
+      <div class="node out" style="grid-area:1/7/4/8">z̃ = μ̂ + ε̃·σ̂</div>
+      <div class="arrow" style="grid-area:1/8/4/9">→</div>
+      <div class="node" style="grid-area:1/9/4/10">Depth Decoder</div>
+      <div class="arrow" style="grid-area:1/10/4/11">→</div>
+      <div class="node out" style="grid-area:1/11/4/12">深度圖</div>
+    </div>
+    <p class="note">圖示為 Fig. 2 下半部的推論路徑；訓練時另有 ε ~ N(0, 1) 的 text-VAE 分支（見下一頁）。</p>
+    <ul>
+      <li><b>文字</b>決定「可能的場景分布」（μ̂, σ̂）</li>
+      <li><b>影像</b>決定「從分布中選哪一個」（ε̃ 取代 Gaussian noise）</li>
+      <li>Loss：scale-invariant loss（γ = 0.85）＋ KL divergence（α = β = 1×10⁻³）</li>
+    </ul>
+  </div>
+  <div class="src">出處：Fig. 2, §3.1–3.3, §4</div>
+</section>
+
+<!-- S5 Method: modules -->
+<section class="slide">
+  <div class="chapter">2 · Method</div>
+  <h2>兩個核心模組</h2>
+  <div class="body cols">
+    <div class="box">
+      <h3>Text-VAE</h3>
+      <ul>
+        <li>Caption → <b>frozen</b> CLIP text encoder（ResNet-50 版，1024 維）→ 3 層 MLP → μ̂, σ̂（d = 128）</li>
+        <li>Reparameterization：<span class="eq">ẑ = μ̂ + ε·σ̂</span>，ε ~ N(0, 1)</li>
+        <li>ẑ 在空間上複製成 d×h×w 後送入 depth decoder</li>
+      </ul>
+    </div>
+    <div class="box">
+      <h3>Image-based conditional sampler</h3>
+      <ul>
+        <li>Swin-L（ImageNet 預訓練）編碼影像，輸出 patch-wise 的 ε̃</li>
+        <li><span class="eq">z̃ = μ̂ + ε̃·σ̂</span>：用影像在文字分布中選出最可能的場景</li>
+        <li>μ̂, σ̂ detach 後也作為輸入；3 個 skip connection 接到 decoder</li>
+        <li>KL loss 讓 ε̃ 不偏離標準 Gaussian</li>
+      </ul>
+    </div>
+  </div>
+  <div class="src">出處：§3.1–3.2, §4</div>
+</section>
+
+<!-- S6 Method: training & inference -->
+<section class="slide">
+  <div class="chapter">2 · Method</div>
+  <h2>訓練：Alternating optimization</h2>
+  <div class="body">
+    <div class="cols">
+      <div>
+        <h3>為什麼不分兩階段</h3>
+        <ul>
+          <li>先訓練 text-VAE 再訓練 sampler，sampler 常卡在 suboptimal local minimum</li>
+          <li>而且多一個訓練階段</li>
+        </ul>
+      </div>
+      <div class="box">
+        <h3>交替訓練</h3>
+        <ul>
+          <li>比例 <b>p</b>：訓練 text-VAE（freeze sampler，ε ~ N(0, 1)）</li>
+          <li>比例 <b>1 − p</b>：訓練 sampler（freeze text-VAE，用 ε̃）</li>
+          <li>Depth decoder 兩步都更新；p 設為 <b>1%</b></li>
+        </ul>
+      </div>
+    </div>
+    <h3 style="margin-top:20px">推論</h3>
+    <ul>
+      <li>不再從 Gaussian 取樣：影像 + caption → conditional sampler → 深度圖</li>
+      <li>另一模式：只用 text-VAE，從 caption 生成可能的深度圖</li>
+    </ul>
+  </div>
+  <div class="src">出處：§3.4, §4, Fig. 2</div>
+</section>
+
+<!-- S7 Results: NYUv2 -->
+<section class="slide">
+  <div class="chapter">3 · Experimental Results</div>
+  <h2>NYU Depth V2（室內）：全部指標最佳</h2>
+  <div class="body">
+    <table>
+      <tr><th>Method</th><th>Backbone</th><th>δ&lt;1.25 ↑</th><th>Abs Rel ↓</th><th>log10 ↓</th><th>RMSE ↓</th></tr>
+      <tr><td>AdaBins</td><td>EffNet-B5 + ViT-mini</td><td>0.903</td><td>0.103</td><td>0.044</td><td>0.364</td></tr>
+      <tr><td>NeWCRFs</td><td>Swin-L</td><td>0.922</td><td>0.095</td><td>0.041</td><td>0.331</td></tr>
+      <tr><td>DepthFormer</td><td>Swin-L</td><td>0.923</td><td>0.094</td><td>0.040</td><td>0.329</td></tr>
+      <tr><td>Baseline</td><td>Swin-L</td><td>0.910</td><td>0.098</td><td>0.043</td><td>0.351</td></tr>
+      <tr class="hl"><td>WorDepth</td><td>Swin-L</td><td>0.932</td><td>0.088</td><td>0.038</td><td>0.317</td></tr>
+      <tr class="imp"><td>相對 Baseline</td><td>—</td><td>+2.42%</td><td>−10.20%</td><td>−11.63%</td><td>−9.69%</td></tr>
+    </table>
+    <ul style="margin-top:14px">
+      <li>測試集 654 張；Baseline = 同樣 Swin-L + decoder，但不使用 language prior</li>
+      <li><b>δ&lt;1.25 提升最明顯</b>：既有方法形狀正確但 scale 偏離，WorDepth 用物體大小推得更好的 scale</li>
+    </ul>
+  </div>
+  <div class="src">出處：Table 1, §4（節錄）</div>
+</section>
+
+<!-- S8 Results: KITTI + zero-shot -->
+<section class="slide">
+  <div class="chapter">3 · Experimental Results</div>
+  <h2>KITTI（室外）與 Zero-shot 遷移</h2>
+  <div class="body cols">
+    <div>
+      <h3>KITTI Eigen split（Table 2）</h3>
+      <table>
+        <tr><th>Method</th><th>δ&lt;1.25</th><th>Abs Rel</th><th>RMSE</th></tr>
+        <tr><td>DepthFormer</td><td>0.975</td><td>0.052</td><td>2.143</td></tr>
+        <tr><td>Baseline</td><td>0.969</td><td>0.054</td><td>2.343</td></tr>
+        <tr class="hl"><td>WorDepth</td><td>0.979</td><td>0.049</td><td>2.039</td></tr>
+      </table>
+      <p class="note">δ&lt;1.25 增益不如室內明顯：室外同一類物體大小差異大，例如「car」可能是 sedan、coupe 或 hatchback</p>
+    </div>
+    <div>
+      <h3>NYUv2 → SUN-RGBD（Table 4）</h3>
+      <table>
+        <tr><th>Method</th><th>δ&lt;1.25</th><th>Abs Rel</th><th>RMSE</th></tr>
+        <tr><td>AdaBins</td><td>0.771</td><td>0.159</td><td>0.476</td></tr>
+        <tr><td>DepthFormer</td><td>0.815</td><td>0.137</td><td>0.408</td></tr>
+        <tr><td>Baseline</td><td>0.803</td><td>0.141</td><td>0.427</td></tr>
+        <tr class="hl"><td>WorDepth</td><td>0.833</td><td>0.123</td><td>0.376</td></tr>
+      </table>
+      <p class="note">不 fine-tune 直接測試；作者認為語言描述跨場景的 domain gap 比影像小</p>
+    </div>
+  </div>
+  <div class="src">出處：Table 2, Table 4, §4（節錄）</div>
+</section>
+
+<!-- S9 Results: ablation & qualitative -->
+<section class="slide">
+  <div class="chapter">3 · Experimental Results</div>
+  <h2>Ablation：alternating ratio p 與定性觀察</h2>
+  <div class="body cols">
+    <div>
+      <h3>Table 3（NYUv2）</h3>
+      <table>
+        <tr><th>p</th><th>δ&lt;1.25</th><th>Abs Rel</th><th>RMSE</th></tr>
+        <tr><td>0%</td><td>0.929</td><td>0.091</td><td>0.323</td></tr>
+        <tr class="hl"><td>1%</td><td>0.932</td><td>0.088</td><td>0.317</td></tr>
+        <tr><td>10%</td><td>0.930</td><td>0.090</td><td>0.322</td></tr>
+        <tr><td>50%</td><td>0.763</td><td>0.163</td><td>0.527</td></tr>
+        <tr><td>90%</td><td>0.642</td><td>0.211</td><td>0.687</td></tr>
+        <tr><td>100%</td><td>0.590</td><td>0.225</td><td>0.746</td></tr>
+      </table>
+      <ul style="margin-top:10px">
+        <li>p = 0%：沒有 variational prior，表現下降</li>
+        <li>p &gt; 10%：sampler 更新太少，表現明顯下降</li>
+        <li>p = 100%：完全不看影像，仍有合理結果</li>
+      </ul>
+    </div>
+    <div class="box">
+      <h3>定性結果（對比 AdaBins）</h3>
+      <ul>
+        <li>Error map 整體變暗 → <b>scale 更準</b></li>
+        <li>Caption 提到的物體改善最明顯：chairs、window、shower curtain（NYUv2）；wall、trees、building（KITTI）</li>
+        <li>「a wall」看似模糊，但 caption 傾向只在大小或距離落在某範圍時才提到它 → 隱含 scale 資訊</li>
+      </ul>
+    </div>
+  </div>
+  <div class="src">出處：Table 3, Fig. 3–4, §4</div>
+</section>
+
+<!-- S10 Conclusions -->
+<section class="slide">
+  <div class="chapter">4 · Conclusions</div>
+  <h2>結論與限制</h2>
+  <div class="body cols">
+    <div>
+      <h3>結論</h3>
+      <ul>
+        <li>Language 可以把學到的場景分布<b>校正到真實世界的 metric scale</b>，緩解 scale ambiguity</li>
+        <li>首個利用兩種有歧義模態互補的 3D 重建方法：把文字的 layout 歧義透過 variational 建模轉為優勢</li>
+        <li>為只能預測 relative / scaleless depth 的方法提供延伸到 metric scale 的方向</li>
+      </ul>
+    </div>
+    <div class="box">
+      <h3>限制</h3>
+      <ul>
+        <li><b>模糊的 caption</b>：幾乎不提供大小或形狀資訊，幫助有限</li>
+        <li><b>具體但錯誤的 caption</b>：可能誤導預測</li>
+        <li>依賴 image captioner 的品質</li>
+        <li>可能被惡意 caption 操控預測</li>
+      </ul>
+    </div>
+  </div>
+  <div class="src">出處：§5</div>
+</section>
+
+</div>
+
+<div class="nav">
+  <button id="prev" aria-label="上一頁">←</button>
+  <span id="count"></span>
+  <button id="next" aria-label="下一頁">→</button>
+</div>
+
+<script>
+  const slides = document.querySelectorAll('.slide');
+  let i = 0;
+  try { const h = parseInt(location.hash.slice(1), 10); if (h >= 1 && h <= slides.length) i = h - 1; } catch (e) {}
+  function show(n) {
+    i = Math.max(0, Math.min(slides.length - 1, n));
+    slides.forEach((s, k) => s.classList.toggle('active', k === i));
+    document.getElementById('count').textContent = (i + 1) + ' / ' + slides.length;
+    try { history.replaceState(null, '', '#' + (i + 1)); } catch (e) {}
+  }
+  document.addEventListener('keydown', e => {
+    if (['ArrowRight', 'PageDown', ' '].includes(e.key)) { e.preventDefault(); show(i + 1); }
+    if (['ArrowLeft', 'PageUp'].includes(e.key)) { e.preventDefault(); show(i - 1); }
+    if (e.key === 'Home') show(0);
+    if (e.key === 'End') show(slides.length - 1);
+  });
+  document.getElementById('prev').onclick = () => show(i - 1);
+  document.getElementById('next').onclick = () => show(i + 1);
+  show(i);
+</script>
+</body>
+</html>

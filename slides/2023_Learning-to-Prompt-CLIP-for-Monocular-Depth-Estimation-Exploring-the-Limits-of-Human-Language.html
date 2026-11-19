@@ -1,0 +1,351 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CLIPMDE 論文導讀</title>
+<style>
+  :root {
+    --bg: #f6f5f1;
+    --card: #ffffff;
+    --ink: #1f2328;
+    --muted: #5f6670;
+    --line: #dcd9d0;
+    --accent: #2f5d8a;
+    --accent-soft: #e3ecf5;
+    --good: #2e7d4f;
+    --learn: #a4511c;
+    --learn-soft: #f8e9dd;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #16181c; --card: #1f2227; --ink: #e8e6e1; --muted: #a0a6ae;
+      --line: #353a42; --accent: #7fb0e0; --accent-soft: #23303d; --good: #6cc495;
+      --learn: #e3a070; --learn-soft: #3a2a1f;
+    }
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; }
+  body {
+    background: var(--bg); color: var(--ink);
+    font-family: "Noto Sans TC", "Microsoft JhengHei", "PingFang TC", system-ui, sans-serif;
+    line-height: 1.6;
+  }
+  .deck { height: 100vh; display: flex; align-items: center; justify-content: center; padding: 16px; }
+  .slide {
+    display: none; width: min(1100px, 100%); height: min(720px, calc(100vh - 64px));
+    background: var(--card); border: 1px solid var(--line); border-radius: 14px;
+    padding: 30px 48px 20px; flex-direction: column; overflow: auto;
+  }
+  .slide.active { display: flex; }
+  .chapter { font-size: 14px; letter-spacing: .08em; color: var(--accent); font-weight: 700; text-transform: uppercase; }
+  h1 { font-size: 38px; margin: 8px 0 12px; line-height: 1.25; }
+  h2 { font-size: 27px; margin: 4px 0 14px; line-height: 1.3; }
+  h3 { font-size: 19px; margin: 0 0 8px; color: var(--accent); }
+  p, li { font-size: 17px; }
+  ul { margin: 0; padding-left: 1.2em; }
+  li { margin: 4px 0; }
+  .body { flex: 1; }
+  .src { margin-top: 16px; padding-top: 10px; border-top: 1px solid var(--line); font-size: 13px; color: var(--muted); }
+  .cols { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+  .box { background: var(--accent-soft); border-radius: 10px; padding: 16px 20px; }
+  .box p, .box li { font-size: 16px; }
+  .muted { color: var(--muted); }
+  .note { color: var(--muted); font-size: 15px; margin: 10px 0 0; }
+  .warn { color: var(--learn); }
+  em.k { font-style: normal; font-weight: 700; color: var(--accent); }
+  table { border-collapse: collapse; width: 100%; font-size: 16px; font-variant-numeric: tabular-nums; }
+  th, td { border-bottom: 1px solid var(--line); padding: 5px 10px; text-align: right; }
+  th:first-child, td:first-child { text-align: left; }
+  th { color: var(--muted); font-weight: 600; }
+  tr.hl td { font-weight: 700; color: var(--accent); }
+  .cover { justify-content: center; }
+  .cover .meta { color: var(--muted); font-size: 18px; margin: 4px 0; }
+  .tagline { margin-top: 28px; font-size: 21px; border-left: 4px solid var(--accent); padding-left: 16px; }
+  .arch { display: grid; grid-template-columns: auto 18px auto 18px auto 18px auto 18px auto 18px auto 18px auto; align-items: center; gap: 6px 2px; margin: 4px 0 14px; }
+  .node { border: 1.5px solid var(--accent); border-radius: 8px; padding: 5px 8px; font-size: 13px; line-height: 1.35; text-align: center; background: var(--card); }
+  .node.in { border-style: dashed; }
+  .node.learn { border-color: var(--learn); background: var(--learn-soft); }
+  .node.out { background: var(--accent-soft); font-weight: 700; }
+  .node.op { border-radius: 999px; }
+  .arrow { text-align: center; color: var(--accent); font-size: 17px; }
+  .legend { font-size: 13px; color: var(--muted); margin: 0 0 8px; }
+  .legend span { display: inline-block; width: 12px; height: 12px; border-radius: 3px; vertical-align: -1px; margin: 0 4px 0 12px; border: 1.5px solid var(--learn); background: var(--learn-soft); }
+  .nav { position: fixed; bottom: 6px; left: 0; right: 0; display: flex; justify-content: center; gap: 12px; align-items: center; color: var(--muted); font-size: 14px; }
+  .nav button { background: var(--card); color: var(--ink); border: 1px solid var(--line); border-radius: 6px; padding: 4px 14px; font-size: 16px; cursor: pointer; }
+  @media (max-width: 720px) {
+    .slide { padding: 24px 20px 18px; height: calc(100vh - 70px); }
+    h1 { font-size: 28px; } h2 { font-size: 23px; }
+    p, li { font-size: 16px; } table { font-size: 13px; } th, td { padding: 5px 4px; }
+    .cols { grid-template-columns: 1fr; }
+    .arch { grid-template-columns: 1fr; } .arch > * { grid-area: auto !important; } .arrow { transform: rotate(90deg); }
+  }
+</style>
+</head>
+<body>
+<div class="deck">
+
+<!-- S1 Cover -->
+<section class="slide cover">
+  <div class="chapter">Paper Reading</div>
+  <h1>Learning to Prompt CLIP for Monocular Depth Estimation: Exploring the Limits of Human Language</h1>
+  <p class="meta">Dylan Auty, Krystian Mikolajczyk</p>
+  <p class="meta">Imperial College London ｜ ICCV Workshops 2023</p>
+  <p class="tagline">把 DepthCLIP 的人類距離詞換成<em class="k">可學的 depth token</em>，CLIP 完全 frozen，只學幾千個參數就大幅提升。</p>
+  <div class="src">出處：Abstract, §1, §5</div>
+</section>
+
+<!-- S2 Introduction: background -->
+<section class="slide">
+  <div class="chapter">1 · Introduction</div>
+  <h2>研究背景：DepthCLIP 用人類語言描述深度</h2>
+  <div class="body">
+    <ul>
+      <li>MDE 是 poorly-posed 問題：同一張影像可能來自無數 3D 場景</li>
+      <li>CLIP 以 4 億張附說明的影像訓練，學到大量世界知識</li>
+    </ul>
+    <div class="box" style="margin-top:18px">
+      <h3>DepthCLIP</h3>
+      <p>每個 depth bin 對應一句「This object is [near/far/…]」，依相似度加權 bin 中心</p>
+    </div>
+  </div>
+  <div class="src">出處：§1</div>
+</section>
+
+<!-- S3 Introduction: problem & contributions -->
+<section class="slide">
+  <div class="chapter">1 · Introduction</div>
+  <h2>問題：人類語言可能不是向 CLIP 描述深度的好方法</h2>
+  <div class="body cols">
+    <div>
+      <h3>現有問題</h3>
+      <ul>
+        <li><b>Human bias</b>：用哪個詞是人選的，而且 prompt 本身就是文字</li>
+        <li>CLIP 的訓練說明很少談深度，它對深度的理解可能是隱性的</li>
+        <li>人類語言是離散的，bin 一多描述就冗長，bin 數受限</li>
+      </ul>
+    </div>
+    <div class="box">
+      <h3>貢獻</h3>
+      <ul>
+        <li>以 learnable prompt token 取代人類距離詞</li>
+        <li>系統性實驗 prompt 模板、bin 數與分布</li>
+        <li>分析學到的 token，理解 CLIP 如何理解深度</li>
+      </ul>
+    </div>
+  </div>
+  <div class="src">出處：§1</div>
+</section>
+
+<!-- S4 Method: overview -->
+<section class="slide">
+  <div class="chapter">2 · Method</div>
+  <h2>整體架構：DepthCLIP ＋ 修改過的 text encoder</h2>
+  <div class="body">
+    <div class="arch">
+      <div class="node learn" style="grid-area:1/1">N depth prompts<br><span class="muted">This object appears to be {depth_tkn_n}</span></div>
+      <div class="arrow" style="grid-area:1/2">→</div>
+      <div class="node" style="grid-area:1/3">Modified CLIP<br>Text Encoder</div>
+      <div class="arrow" style="grid-area:1/4">→</div>
+      <div class="node" style="grid-area:1/5">txt_f（C × N）</div>
+      <div class="arrow" style="grid-area:1/6">↘</div>
+
+      <div class="node op" style="grid-area:2/7">Inner product</div>
+      <div class="arrow" style="grid-area:2/8">→</div>
+      <div class="node" style="grid-area:2/9">prompt logits</div>
+      <div class="arrow" style="grid-area:2/10">→</div>
+      <div class="node op" style="grid-area:2/11">⊗</div>
+      <div class="arrow" style="grid-area:2/12">→</div>
+      <div class="node" style="grid-area:2/13">Reshape,<br>bilinear resize</div>
+
+      <div class="node in" style="grid-area:3/1">Input Image</div>
+      <div class="arrow" style="grid-area:3/2">→</div>
+      <div class="node" style="grid-area:3/3">CLIP Img Encoder<br><span class="muted">frozen</span></div>
+      <div class="arrow" style="grid-area:3/4">→</div>
+      <div class="node" style="grid-area:3/5">img_f<br><span class="muted">view / permute 攤平成 patch</span></div>
+      <div class="arrow" style="grid-area:3/6">↗</div>
+      <div class="node in" style="grid-area:3/9">N fixed depth centres<br>[c0, …, cn]</div>
+      <div class="arrow" style="grid-area:3/10">↗</div>
+      <div class="arrow" style="grid-area:3/13">↓</div>
+      <div class="node out" style="grid-area:4/13">Depth map</div>
+    </div>
+    <p class="legend">橘色框：唯一可學的部分（depth token）</p>
+    <ul>
+      <li>流程與 DepthCLIP 相同，只把 text encoder 換成可插入 learnable token 的版本</li>
+      <li>預訓練 CLIP 完全 frozen，只訓練 learnable token</li>
+      <li>輸出刻意保持低解析度，避免專門的 decoder 混淆對 CLIP 能力的判斷</li>
+    </ul>
+  </div>
+  <div class="src">出處：Fig. 1, §3</div>
+</section>
+
+<!-- S5 Method: learnable token -->
+<section class="slide">
+  <div class="chapter">2 · Method</div>
+  <h2>Learnable depth token：替換掉 prompt 裡的距離詞</h2>
+  <div class="body">
+    <ul>
+      <li>CLIP 原本把每個詞查表成 frozen 的 512 維 token</li>
+      <li>修改 tokenizer：特殊詞 {depth_tkn_n} 換成可學參數，其餘仍 frozen</li>
+      <li>沿用 CoOp 的作法；以平均 0、標準差 0.02 的常態分布初始化</li>
+      <li>可再加入所有 bin 共用的 learnable context token {p_i}</li>
+    </ul>
+    <table style="margin-top:16px">
+      <tr><th>名稱</th><th style="text-align:left">模板（Table 1）</th></tr>
+      <tr><td>Baseline</td><td style="text-align:left">This object appears to be {depth_tkn}.</td></tr>
+      <tr><td>1o1d</td><td style="text-align:left">{p_0} object {p_1} {depth_tkn}.</td></tr>
+      <tr><td>4o4d</td><td style="text-align:left">{p_0} {p_1} {p_2} {p_3} object {p_4} {p_5} {p_6} {p_7} {depth_tkn}.</td></tr>
+    </table>
+  </div>
+  <div class="src">出處：§3.1, §3.3, Fig. 2, Table 1（節錄）</div>
+</section>
+
+<!-- S6 Method: output & training -->
+<section class="slide">
+  <div class="chapter">2 · Method</div>
+  <h2>輸出與訓練</h2>
+  <div class="body cols">
+    <div class="box">
+      <h3>輸出</h3>
+      <ul>
+        <li>Inner product 正規化成 N 個 bin 的 logits，乘上固定 bin 中心後加總</li>
+        <li>得到 H/32 × W/32 的深度圖，再雙線性上採樣</li>
+      </ul>
+    </div>
+    <div class="box">
+      <h3>訓練</h3>
+      <ul>
+        <li>Loss：SILog 變體；25 epochs、AdamW，超參數沿用 AdaBins</li>
+        <li>資料：NYUv2 24231 / 654 張、KITTI 23157 / 696 張（完整訓練集）</li>
+        <li>CLIP ResNet-50；評估時對原圖與翻轉圖的預測取平均</li>
+      </ul>
+    </div>
+  </div>
+  <div class="src">出處：§3.2, §4.1</div>
+</section>
+
+<!-- S7 Results: learned vs human -->
+<section class="slide">
+  <div class="chapter">3 · Experimental Results</div>
+  <h2>Learned token 大勝人類語言，連隨機 token 都可能贏過人類詞</h2>
+  <div class="body cols">
+    <div>
+      <table>
+        <tr><th>Tokens</th><th>Dataset</th><th>Abs ↓</th><th>RMS ↓</th><th>δ1 ↑</th></tr>
+        <tr><td>depth-7</td><td>NYUv2</td><td>1.014</td><td>2.413</td><td>0.227</td></tr>
+        <tr><td>colour-7</td><td>NYUv2</td><td>1.381</td><td>3.010</td><td>0.131</td></tr>
+        <tr class="hl"><td>learned-7</td><td>NYUv2</td><td>0.319</td><td>0.970</td><td>0.465</td></tr>
+        <tr><td>depth-7</td><td>KITTI</td><td>2.353</td><td>25.518</td><td>0.094</td></tr>
+        <tr><td>random-7</td><td>KITTI</td><td>1.664</td><td>19.279</td><td>0.119</td></tr>
+        <tr class="hl"><td>learned-7</td><td>KITTI</td><td>0.303</td><td>6.322</td><td>0.550</td></tr>
+      </table>
+    </div>
+    <div class="box">
+      <ul>
+        <li>7 個平均分布的 bin，比較人類詞刻度與 learned token</li>
+        <li>learned-7 只有 3584 個參數，表現提升 1.5～5.5 倍</li>
+        <li>KITTI 上 random-7 勝過所有人類詞；NYUv2 上 colour-7 勝過 size-7</li>
+      </ul>
+    </div>
+  </div>
+  <div class="src">出處：Table 2, Table 3, §4.2（節錄）</div>
+</section>
+
+<!-- S8 Results: context & bins -->
+<section class="slide">
+  <div class="chapter">3 · Experimental Results</div>
+  <h2>Context token 救人類詞；bin 越多越好</h2>
+  <div class="body cols">
+    <div>
+      <h3>Log-uniform bins（Table 7）</h3>
+      <table>
+        <tr><th>Bins</th><th>Dataset</th><th>Abs ↓</th><th>RMS ↓</th><th>δ1 ↑</th></tr>
+        <tr><td>7</td><td>NYUv2</td><td>0.312</td><td>0.991</td><td>0.449</td></tr>
+        <tr class="hl"><td>256</td><td>NYUv2</td><td>0.298</td><td>0.933</td><td>0.485</td></tr>
+        <tr><td>7</td><td>KITTI</td><td>0.265</td><td>6.933</td><td>0.580</td></tr>
+        <tr class="hl"><td>256</td><td>KITTI</td><td>0.238</td><td>5.756</td><td>0.652</td></tr>
+      </table>
+    </div>
+    <div class="box">
+      <ul>
+        <li>人類詞 depth-7 加上 4o4d context token：NYUv2 Abs 1.014 → 0.318</li>
+        <li>Context token 加在 learned token 上只小幅改善，多數效益來自 depth token</li>
+        <li>Learned token 解除 bin 數限制：KITTI 用 log-uniform 分布較好</li>
+      </ul>
+    </div>
+  </div>
+  <div class="src">出處：Table 4–7, §4.3–4.4（節錄）</div>
+</section>
+
+<!-- S9 Results: interpretation -->
+<section class="slide">
+  <div class="chapter">3 · Experimental Results</div>
+  <h2>學到的 token 幾乎不對應任何英文詞</h2>
+  <div class="body">
+    <ul>
+      <li><b>方法</b>：把 CLIP 字彙約 4 萬個 token 代入 prompt，找每個 learned token 的最近鄰</li>
+      <li>7 個 token 中只有 token 1 最接近「close」、token 6 最接近「distant」</li>
+      <li>其餘 token 的最近鄰都是其他 learned token，且依遠近排成一條路徑</li>
+      <li>Bin 數增加持續提升表現 → 其他 token 也帶有<b>無法用語言表達</b>的深度資訊</li>
+    </ul>
+  </div>
+  <div class="src">出處：Table 8, §4.5</div>
+</section>
+
+<!-- S10 Conclusions -->
+<section class="slide">
+  <div class="chapter">4 · Conclusions</div>
+  <h2>結論與限制</h2>
+  <div class="body">
+    <div class="cols">
+      <div>
+        <h3>結論</h3>
+        <ul>
+          <li>只學幾千個參數，就比人類詞與隨機 token 大幅提升</li>
+          <li>CLIP 的深度概念無法用人類語言簡潔表達；其他抽象概念可能也是如此</li>
+        </ul>
+      </div>
+      <div class="box">
+        <h3>限制（補充，論文未明列）</h3>
+        <ul>
+          <li>輸出為 H/32 × W/32 低解析度</li>
+          <li>仍需在完整訓練集上訓練，並非 zero/few-shot</li>
+          <li>Bin 中心固定，不依影像調整</li>
+        </ul>
+      </div>
+    </div>
+    <p class="note warn">提醒：WorDepth 引用本篇 NYUv2 的 log10 為 0.139，實為 RMSL（log10 為 0.128）。</p>
+  </div>
+  <div class="src">出處：§5, §3.2, §4.1</div>
+</section>
+
+</div>
+
+<div class="nav">
+  <button id="prev" aria-label="上一頁">←</button>
+  <span id="count"></span>
+  <button id="next" aria-label="下一頁">→</button>
+</div>
+
+<script>
+  const slides = document.querySelectorAll('.slide');
+  let i = 0;
+  try { const h = parseInt(location.hash.slice(1), 10); if (h >= 1 && h <= slides.length) i = h - 1; } catch (e) {}
+  function show(n) {
+    i = Math.max(0, Math.min(slides.length - 1, n));
+    slides.forEach((s, k) => s.classList.toggle('active', k === i));
+    document.getElementById('count').textContent = (i + 1) + ' / ' + slides.length;
+    try { history.replaceState(null, '', '#' + (i + 1)); } catch (e) {}
+  }
+  document.addEventListener('keydown', e => {
+    if (['ArrowRight', 'PageDown', ' '].includes(e.key)) { e.preventDefault(); show(i + 1); }
+    if (['ArrowLeft', 'PageUp'].includes(e.key)) { e.preventDefault(); show(i - 1); }
+    if (e.key === 'Home') show(0);
+    if (e.key === 'End') show(slides.length - 1);
+  });
+  document.getElementById('prev').onclick = () => show(i - 1);
+  document.getElementById('next').onclick = () => show(i + 1);
+  show(i);
+</script>
+</body>
+</html>

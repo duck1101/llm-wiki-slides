@@ -1,0 +1,402 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Few-Shot CLIP 論文導讀</title>
+<style>
+  :root {
+    --bg: #f6f5f1;
+    --card: #ffffff;
+    --ink: #1f2328;
+    --muted: #5f6670;
+    --line: #dcd9d0;
+    --accent: #2f5d8a;
+    --accent-soft: #e3ecf5;
+    --good: #2e7d4f;
+    --learn: #a4511c;
+    --learn-soft: #f8e9dd;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #16181c; --card: #1f2227; --ink: #e8e6e1; --muted: #a0a6ae;
+      --line: #353a42; --accent: #7fb0e0; --accent-soft: #23303d; --good: #6cc495;
+      --learn: #e3a070; --learn-soft: #3a2a1f;
+    }
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; }
+  body {
+    background: var(--bg); color: var(--ink);
+    font-family: "Noto Sans TC", "Microsoft JhengHei", "PingFang TC", system-ui, sans-serif;
+    line-height: 1.6;
+  }
+  .deck { height: 100vh; display: flex; align-items: center; justify-content: center; padding: 16px; }
+  .slide {
+    display: none; width: min(1100px, 100%); height: min(720px, calc(100vh - 64px));
+    background: var(--card); border: 1px solid var(--line); border-radius: 14px;
+    padding: 30px 48px 20px; flex-direction: column; overflow: auto;
+  }
+  .slide.active { display: flex; }
+  .chapter { font-size: 14px; letter-spacing: .08em; color: var(--accent); font-weight: 700; text-transform: uppercase; }
+  h1 { font-size: 38px; margin: 8px 0 12px; line-height: 1.25; }
+  h2 { font-size: 27px; margin: 4px 0 14px; line-height: 1.3; }
+  h3 { font-size: 19px; margin: 0 0 8px; color: var(--accent); }
+  p, li { font-size: 17px; }
+  ul { margin: 0; padding-left: 1.2em; }
+  li { margin: 4px 0; }
+  .body { flex: 1; }
+  .src { margin-top: 16px; padding-top: 10px; border-top: 1px solid var(--line); font-size: 13px; color: var(--muted); }
+  .cols { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+  .box { background: var(--accent-soft); border-radius: 10px; padding: 16px 20px; }
+  .box p, .box li { font-size: 16px; }
+  .muted { color: var(--muted); }
+  .note { color: var(--muted); font-size: 15px; margin: 10px 0 0; }
+  .warn { color: var(--learn); }
+  em.k { font-style: normal; font-weight: 700; color: var(--accent); }
+  table { border-collapse: collapse; width: 100%; font-size: 16px; font-variant-numeric: tabular-nums; }
+  th, td { border-bottom: 1px solid var(--line); padding: 5px 10px; text-align: right; }
+  th:first-child, td:first-child { text-align: left; }
+  th { color: var(--muted); font-weight: 600; }
+  tr.hl td { font-weight: 700; color: var(--accent); }
+  .cover { justify-content: center; }
+  .cover .meta { color: var(--muted); font-size: 18px; margin: 4px 0; }
+  .tagline { margin-top: 28px; font-size: 21px; border-left: 4px solid var(--accent); padding-left: 16px; }
+  .arch { display: grid; grid-template-columns: auto 18px auto 18px auto 18px auto 18px auto 18px auto 18px auto; align-items: center; gap: 6px 2px; margin: 4px 0 14px; }
+  .node { border: 1.5px solid var(--accent); border-radius: 8px; padding: 5px 8px; font-size: 13px; line-height: 1.35; text-align: center; background: var(--card); }
+  .node.in { border-style: dashed; }
+  .node.learn { border-color: var(--learn); background: var(--learn-soft); }
+  .node.out { background: var(--accent-soft); font-weight: 700; }
+  .node.op { border-radius: 999px; }
+  .arrow { text-align: center; color: var(--accent); font-size: 17px; }
+  .legend { font-size: 13px; color: var(--muted); margin: 0 0 8px; }
+  .legend span { display: inline-block; width: 12px; height: 12px; border-radius: 3px; vertical-align: -1px; margin: 0 4px 0 12px; border: 1.5px solid var(--learn); background: var(--learn-soft); }
+  .nav { position: fixed; bottom: 6px; left: 0; right: 0; display: flex; justify-content: center; gap: 12px; align-items: center; color: var(--muted); font-size: 14px; }
+  .nav button { background: var(--card); color: var(--ink); border: 1px solid var(--line); border-radius: 6px; padding: 4px 14px; font-size: 16px; cursor: pointer; }
+  @media (max-width: 720px) {
+    .slide { padding: 24px 20px 18px; height: calc(100vh - 70px); }
+    h1 { font-size: 28px; } h2 { font-size: 23px; }
+    p, li { font-size: 16px; } table { font-size: 13px; } th, td { padding: 5px 4px; }
+    .cols { grid-template-columns: 1fr; }
+    .arch { grid-template-columns: 1fr; } .arch > * { grid-area: auto !important; } .arrow { transform: rotate(90deg); }
+  }
+</style>
+</head>
+<body>
+<div class="deck">
+
+<!-- S1 Cover -->
+<section class="slide cover">
+  <div class="chapter">Paper Reading</div>
+  <h1>Learning to Adapt CLIP for Few-Shot Monocular Depth Estimation</h1>
+  <p class="meta">Xueting Hu, Ce Zhang, Yi Zhang, Bowen Hai, Ke Yu, Zhihai He</p>
+  <p class="meta">SUSTech · Pengcheng Laboratory ｜ WACV 2024</p>
+  <p class="tagline">在 DepthCLIP 上，每個場景類別只用 <em class="k">1 張影像</em>訓練 learnable prompt 與依場景切換的 depth codebook。</p>
+  <div class="src">出處：Abstract, §1</div>
+</section>
+
+<!-- S2 Introduction: background -->
+<section class="slide">
+  <div class="chapter">1 · Introduction</div>
+  <h2>研究背景：用 CLIP 做 zero-shot 深度估計</h2>
+  <div class="body cols">
+    <div>
+      <ul>
+        <li>CLIP 以 4 億組 image-text pair 做 contrastive learning，用 cosine similarity 判斷影像與文字是否配對</li>
+        <li>傳統 supervised MDE 需要大量標註資料，計算成本高、訓練耗時</li>
+      </ul>
+    </div>
+    <div class="box">
+      <h3>DepthCLIP（zero-shot）</h3>
+      <ul>
+        <li>影像 patch 與一組深度描述做相似度，再對人工設定的深度值加權求和</li>
+        <li>Prompt：「This object is [Depth CLASS]」</li>
+        <li>[Depth CLASS] 共 7 類：giant、extremely close、close、not in distance、a little remote、far、unseen</li>
+      </ul>
+    </div>
+  </div>
+  <div class="src">出處：§1, §3.3</div>
+</section>
+
+<!-- S3 Introduction: problem & motivation -->
+<section class="slide">
+  <div class="chapter">1 · Introduction</div>
+  <h2>問題：固定的 depth bin 不適合所有場景</h2>
+  <div class="body cols">
+    <div>
+      <h3>現有問題</h3>
+      <ul>
+        <li>不同場景的深度分布不同（如 bathroom vs. bedroom），固定的深度值只在部分場景表現好</li>
+        <li>為人類設計的 prompt 對模型不一定直觀</li>
+      </ul>
+      <h3 style="margin-top:18px">動機</h3>
+      <ul>
+        <li>Few-shot 介於 supervised（成本高）與 zero-shot（泛化有限）之間</li>
+      </ul>
+    </div>
+    <div class="box">
+      <h3>貢獻</h3>
+      <ul>
+        <li>在 few-shot 設定下用 vision-language model 做 MDE</li>
+        <li>Learnable prompt ＋ learnable depth codebook</li>
+        <li>每個場景只用 1 張影像，NYU V2 上 MARE 比先前 SOTA 最多改善 <b>10.6%</b></li>
+      </ul>
+    </div>
+  </div>
+  <div class="src">出處：§1, §3.3, Fig. 1</div>
+</section>
+
+<!-- S4 Method: overview -->
+<section class="slide">
+  <div class="chapter">2 · Method</div>
+  <h2>整體架構：三個 frozen CLIP encoder ＋ 兩個可學元件</h2>
+  <div class="body">
+    <p class="legend">實線框：frozen<span></span>橘色框：few-shot 訓練時更新</p>
+    <div class="arch">
+      <div class="node learn" style="grid-area:1/1">Learnable Prompt<br>[V1…Vn] + class</div>
+      <div class="arrow" style="grid-area:1/2">→</div>
+      <div class="node" style="grid-area:1/3">Textual Encoder</div>
+      <div class="arrow" style="grid-area:1/4">→</div>
+      <div class="node" style="grid-area:1/5">Text Features</div>
+      <div class="arrow" style="grid-area:1/6">↘</div>
+
+      <div class="node in" style="grid-area:2/1/4/2">Input Image</div>
+      <div class="arrow" style="grid-area:2/2">→</div>
+      <div class="node" style="grid-area:2/3">Visual Encoder</div>
+      <div class="arrow" style="grid-area:2/4">→</div>
+      <div class="node" style="grid-area:2/5">Image Feature</div>
+      <div class="arrow" style="grid-area:2/6">→</div>
+      <div class="node op" style="grid-area:2/7">⊙ → Softmax</div>
+      <div class="arrow" style="grid-area:2/8">→</div>
+      <div class="node" style="grid-area:2/9">Depth Weights</div>
+      <div class="arrow" style="grid-area:2/10">↘</div>
+
+      <div class="arrow" style="grid-area:3/2">→</div>
+      <div class="node" style="grid-area:3/3">Scene Encoder</div>
+      <div class="arrow" style="grid-area:3/4">→</div>
+      <div class="node" style="grid-area:3/5">Scene Feature</div>
+      <div class="arrow" style="grid-area:3/6">↘</div>
+      <div class="node learn" style="grid-area:3/9">Learnable Depth Codebook<br>↓</div>
+
+      <div class="node in" style="grid-area:4/1">Few-shot Training Images</div>
+      <div class="arrow" style="grid-area:4/2">→</div>
+      <div class="node" style="grid-area:4/3">Scene Encoder</div>
+      <div class="arrow" style="grid-area:4/4">→</div>
+      <div class="node" style="grid-area:4/5">Class-specific Features</div>
+      <div class="arrow" style="grid-area:4/6">→</div>
+      <div class="node op" style="grid-area:4/7">⊙ → OneHot</div>
+      <div class="arrow" style="grid-area:4/8">→</div>
+      <div class="node" style="grid-area:4/9">Selected Depth Bin</div>
+      <div class="arrow" style="grid-area:4/10">↗</div>
+
+      <div class="node" style="grid-area:2/11/5/12">Weighted Sum</div>
+      <div class="arrow" style="grid-area:2/12/5/13">→</div>
+      <div class="node out" style="grid-area:2/13/5/14">Depth Predictions</div>
+    </div>
+    <ul>
+      <li>三個 encoder 都來自 CLIP（ResNet-50），全部 frozen；兩個 Scene Encoder 為同一個 encoder</li>
+      <li>只更新 learnable prompt 與 learnable depth codebook</li>
+      <li><b>文字路徑</b>決定每個 patch 屬於哪個深度類別（depth weights）</li>
+      <li><b>場景路徑</b>決定這張影像要用哪一組深度值（selected depth bin）</li>
+    </ul>
+  </div>
+  <div class="src">出處：Fig. 2, §3.2</div>
+</section>
+
+<!-- S5 Method: learnable prompt -->
+<section class="slide">
+  <div class="chapter">2 · Method</div>
+  <h2>Learnable prompt：把人類的句子換成模型的向量</h2>
+  <div class="body">
+    <div class="cols">
+      <div class="box">
+        <h3>DepthCLIP</h3>
+        <p>「This object is」＋ [Depth CLASS]<br><span class="muted">人工撰寫</span></p>
+      </div>
+      <div class="box">
+        <h3>本篇</h3>
+        <p>[v1, …, vn] ＋ [Class]<br><span class="muted">可學向量 V，n 是超參數</span></p>
+      </div>
+    </div>
+    <ul style="margin-top:18px">
+      <li>輸入形式「[Vector] + [Class]」：K 個深度類別共用 V，各自接上 class token</li>
+      <li>每個 prompt 經 frozen CLIP text encoder 得到 text feature</li>
+      <li>以預測深度與 ground truth 的 RMSE 作為 loss 更新 V</li>
+    </ul>
+  </div>
+  <div class="src">出處：§3.3, Eq. 1–3</div>
+</section>
+
+<!-- S6 Method: codebook & prediction -->
+<section class="slide">
+  <div class="chapter">2 · Method</div>
+  <h2>Learnable depth codebook 與深度預測</h2>
+  <div class="body cols">
+    <div class="box">
+      <h3>Depth codebook：每個場景類別一組 depth bin</h3>
+      <ul>
+        <li>輸入影像的 scene feature 與各場景特徵算 cosine similarity，取最相似者（one-hot）</li>
+        <li>選出該場景的 depth bin θ*；NYU V2 為 27 類 × 7 個深度值</li>
+      </ul>
+    </div>
+    <div class="box">
+      <h3>深度預測</h3>
+      <ul>
+        <li>Patch 特徵與 K 個 text feature 算相似度，softmax 得到 depth weight</li>
+        <li>深度 = depth weight 對 θ* 加權求和</li>
+        <li>以 patch 為單位，同一 patch 內像素深度相同</li>
+      </ul>
+    </div>
+  </div>
+  <div class="src">出處：§3.4–3.5, §4.2, Eq. 4–12</div>
+</section>
+
+<!-- S7 Results: NYU -->
+<section class="slide">
+  <div class="chapter">3 · Experimental Results</div>
+  <h2>NYU Depth V2：明顯優於 DepthCLIP，但仍遠落後 supervised</h2>
+  <div class="body">
+    <table>
+      <tr><th>Method</th><th>Supervision</th><th>δ&lt;1.25 ↑</th><th>MARE ↓</th><th>RMSE ↓</th></tr>
+      <tr><td>Make3D</td><td>full</td><td>0.447</td><td>0.349</td><td>1.214</td></tr>
+      <tr><td>DepthFormer</td><td>full</td><td>0.921</td><td>0.096</td><td>0.339</td></tr>
+      <tr><td>Lower Bound</td><td>—</td><td>0.140</td><td>1.327</td><td>2.934</td></tr>
+      <tr><td>DepthCLIP</td><td>0-shot</td><td>0.394</td><td>0.388</td><td>1.167</td></tr>
+      <tr class="hl"><td>Ours</td><td>1-shot</td><td>0.428</td><td>0.347</td><td>1.049</td></tr>
+    </table>
+    <ul style="margin-top:14px">
+      <li>設定：27 個場景類別各 1 張影像訓練、200 epochs、單張 RTX 3090</li>
+      <li>相對 DepthCLIP 所有指標都改善；MARE 0.388 → 0.347</li>
+      <li>可與 fully-supervised 的 Make3D 相比，RMSE 1.049 vs. 1.214</li>
+      <li>與 DepthFormer 等現代 supervised 方法差距仍大</li>
+    </ul>
+  </div>
+  <div class="src">出處：Table 1, §4.2, §4.4（節錄）</div>
+</section>
+
+<!-- S8 Results: KITTI & efficiency -->
+<section class="slide">
+  <div class="chapter">3 · Experimental Results</div>
+  <h2>KITTI 與訓練成本</h2>
+  <div class="body cols">
+    <div>
+      <h3>KITTI（Table 2）</h3>
+      <table>
+        <tr><th>Method</th><th>δ&lt;1.25</th><th>MARE</th><th>RMSE</th></tr>
+        <tr><td>DepthFormer</td><td>0.975</td><td>0.052</td><td>2.143</td></tr>
+        <tr><td>DepthCLIP</td><td>0.281</td><td>0.473</td><td>12.958</td></tr>
+        <tr class="hl"><td>Ours</td><td>0.312</td><td>0.384</td><td>12.290</td></tr>
+      </table>
+      <ul style="margin-top:10px">
+        <li>仍大幅優於 DepthCLIP，但絕對誤差高（RMSE 12.290）</li>
+        <li>DepthCLIP 的 depth bin 由作者手動調整；本方法的 depth bin 可學</li>
+      </ul>
+    </div>
+    <div>
+      <h3>效率（Table 5，NYU V2）</h3>
+      <table>
+        <tr><th>Method</th><th>Time</th><th>Params.</th><th>RMSE</th></tr>
+        <tr><td>DORN</td><td>&gt; 30 h</td><td>51M</td><td>0.509</td></tr>
+        <tr><td>DepthCLIP</td><td>0</td><td>0</td><td>1.147</td></tr>
+        <tr class="hl"><td>Ours</td><td>70 min</td><td>8K</td><td>1.049</td></tr>
+      </table>
+      <ul style="margin-top:10px">
+        <li>只更新 8K 參數、27 張影像訓練 70 分鐘</li>
+      </ul>
+    </div>
+  </div>
+  <div class="src">出處：Table 2, Table 5, §4.4, §4.6（節錄）</div>
+</section>
+
+<!-- S9 Results: ablation -->
+<section class="slide">
+  <div class="chapter">3 · Experimental Results</div>
+  <h2>Ablation：兩個元件都有貢獻</h2>
+  <div class="body cols">
+    <div>
+      <h3>元件（Table 3）</h3>
+      <table>
+        <tr><th>Method</th><th>δ&lt;1.25</th><th>MARE</th><th>RMSE</th></tr>
+        <tr><td>Baseline（DepthCLIP）</td><td>0.394</td><td>0.388</td><td>1.167</td></tr>
+        <tr><td>+ Learnable Prompt</td><td>0.429</td><td>0.386</td><td>1.076</td></tr>
+        <tr><td>+ Prompt + Depth Bin</td><td>0.433</td><td>0.378</td><td>1.066</td></tr>
+        <tr class="hl"><td>+ Prompt + Depth Codebook</td><td>0.428</td><td>0.347</td><td>1.049</td></tr>
+      </table>
+      <h3 style="margin-top:14px">Patch size（Table 4）</h3>
+      <table>
+        <tr><th>Patch size</th><th>δ&lt;1.25</th><th>MARE</th><th>RMSE</th></tr>
+        <tr><td>8 × 8</td><td>0.336</td><td>0.379</td><td>1.300</td></tr>
+        <tr><td>16 × 16</td><td>0.354</td><td>0.514</td><td>1.229</td></tr>
+        <tr class="hl"><td>32 × 32</td><td>0.428</td><td>0.347</td><td>1.049</td></tr>
+      </table>
+    </div>
+    <div class="box">
+      <ul>
+        <li>Learnable prompt 明顯提升表現</li>
+        <li>Depth codebook（依場景）取代單一 depth bin：除 δ&lt;1.25 外所有指標改善</li>
+        <li>Patch size 32 × 32 最好（ResNet-50 CLIP 的特徵為輸入的 1/32）</li>
+        <li>定性（Fig. 3）：紅框區域比 DepthCLIP 更準</li>
+        <li class="warn">注意：原文 Table 3–4 的 RMSE / AELS 欄位疑似對調，此處依數值意義標示</li>
+      </ul>
+    </div>
+  </div>
+  <div class="src">出處：Table 3, Table 4, Fig. 3, §4.5–4.6（節錄）</div>
+</section>
+
+<!-- S10 Conclusions -->
+<section class="slide">
+  <div class="chapter">4 · Conclusions</div>
+  <h2>結論與限制</h2>
+  <div class="body">
+    <div class="cols">
+      <div>
+        <h3>結論</h3>
+        <ul>
+          <li>以 few-shot 調整 CLIP，在訓練成本與泛化之間取得平衡</li>
+          <li>依場景指派 depth bin，並用 learnable prompt 把文字轉成模型易懂的向量</li>
+        </ul>
+      </div>
+      <div class="box">
+        <h3>限制（補充，論文未明列）</h3>
+        <ul>
+          <li>與 supervised 差距大：δ&lt;1.25 0.428 vs. DepthFormer 0.921</li>
+          <li>以 patch 為單位預測，深度圖解析度粗</li>
+          <li>需要事先定義場景類別並準備每類影像</li>
+        </ul>
+      </div>
+    </div>
+    <p class="note warn">提醒：論文中有數處表格欄位、公式與數值前後不一致，引用時請對照 Wiki。</p>
+  </div>
+  <div class="src">出處：§5, Table 1, §3.5</div>
+</section>
+
+</div>
+
+<div class="nav">
+  <button id="prev" aria-label="上一頁">←</button>
+  <span id="count"></span>
+  <button id="next" aria-label="下一頁">→</button>
+</div>
+
+<script>
+  const slides = document.querySelectorAll('.slide');
+  let i = 0;
+  try { const h = parseInt(location.hash.slice(1), 10); if (h >= 1 && h <= slides.length) i = h - 1; } catch (e) {}
+  function show(n) {
+    i = Math.max(0, Math.min(slides.length - 1, n));
+    slides.forEach((s, k) => s.classList.toggle('active', k === i));
+    document.getElementById('count').textContent = (i + 1) + ' / ' + slides.length;
+    try { history.replaceState(null, '', '#' + (i + 1)); } catch (e) {}
+  }
+  document.addEventListener('keydown', e => {
+    if (['ArrowRight', 'PageDown', ' '].includes(e.key)) { e.preventDefault(); show(i + 1); }
+    if (['ArrowLeft', 'PageUp'].includes(e.key)) { e.preventDefault(); show(i - 1); }
+    if (e.key === 'Home') show(0);
+    if (e.key === 'End') show(slides.length - 1);
+  });
+  document.getElementById('prev').onclick = () => show(i - 1);
+  document.getElementById('next').onclick = () => show(i + 1);
+  show(i);
+</script>
+</body>
+</html>
